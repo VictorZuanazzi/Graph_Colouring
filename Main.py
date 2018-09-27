@@ -17,7 +17,7 @@ n_nodes = 25  # Number of countries = number of nodes in a graph
 number_of_edges, al = generate_random_graph(n_nodes, 0.6)  # The graph 
 #architecture is generated randomly
 n_generations = 100
-genetic_op = 'mutation'  # 'SPC' - single point crossover or 'mutation'
+genetic_op = 'SPC'  # 'SPC' - single point crossover or 'mutation'
 percentage_of_parents_to_keep = 0.2  # In each generation update a certain 
 #percentage of fittest parents is kept
 

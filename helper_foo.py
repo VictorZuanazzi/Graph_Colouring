@@ -4,6 +4,7 @@
 import matplotlib.pyplot as plt  # Drawing graphs
 import networkx as nx  # Generating of graphs
 import numpy as np
+import math
 
 
 # Define the main data structure
@@ -159,7 +160,7 @@ def parent_selection(input_population, number_of_pairs, method='RFPS'):
 
 
 # Define a genetic operator
-def genetic_operator(pair_of_parents, method='SPC'):
+def genetic_operator(pair_of_parents, method='SPC', mutation_rate = 0.2):
     """
     For a given pair of parents we output a pair of children based one a given 
     genetic operator
@@ -174,7 +175,10 @@ def genetic_operator(pair_of_parents, method='SPC'):
 
     n_nodes = pair_of_parents[0].n_nodes
     al = pair_of_parents[0].adjacency_list
-
+    mapper = {'r': ['b', 'g'], 'b': ['r', 'g'], 'g': ['r', 'b']}
+    child_one_colors = pair_of_parents[0].colors
+    child_two_colors = pair_of_parents[1].colors
+        
     if method == 'mutation': #only mutates a random allele
         # this method does not need a pair of parents, it inputs only one person
         
@@ -183,29 +187,33 @@ def genetic_operator(pair_of_parents, method='SPC'):
         node2 = np.random.randint(0, n_nodes)
         
         #Step 2) Change the allele in this gene
-        mapper = {'r': ['b', 'g'], 'b': ['r', 'g'], 'g': ['r', 'b']}
-
-        child_one_colors = pair_of_parents[0].colors
-        child_two_colors = pair_of_parents[1].colors
         child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
         child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
 
-        return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
+        #return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
+    
+    if method == 'N_mutation': #only mutates N random alleles
+        # this method does not need a pair of parents, it inputs only one person
+        
+        nr_of_mutations = int(mutation_rate*n_nodes)
+        for i in range(nr_of_mutations):
+            child_1, child_2 = genetic_operator(pair_of_parents, 
+                                                method='mutation',
+                                                mutation_rate = mutation_rate)
+
+        #return child_1, child_2
     
     if method == 'wild_mutation': #it changes several genes
         
-        p_m = 0.8
-        
-        child_one_colors = pair_of_parents[0].colors
-        child_two_colors = pair_of_parents[1].colors
-        mapper = {'r': ['b', 'g'], 'b': ['r', 'g'], 'g': ['r', 'b']}
+        p_m = (1- mutation_rate)**0.5
+
         for node1 in range(n_nodes):
             node2 = n_nodes-1-node1
             if np.random.uniform(0,1) < p_m:
                 child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
                 child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
 
-        return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
+        #return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
 
     if method == 'SPC':  # Single point crossover
         # Step 1) Select a random point
@@ -219,7 +227,7 @@ def genetic_operator(pair_of_parents, method='SPC'):
         child_one_colors = parent_1_colors[:point] + parent_2_colors[point:]
         child_two_colors = parent_2_colors[:point] + parent_1_colors[point:]
 
-        return (World_Map(child_one_colors, al), World_Map(child_two_colors, al))
+    return (World_Map(child_one_colors, al), World_Map(child_two_colors, al))
 
 
 # Population update
@@ -227,7 +235,8 @@ def population_update(input_population,
                       output_population_size, 
                       generation_change_method='Elitism',
                       percentage_to_keep=0.1, 
-                      genetic_op='SPC'):
+                      genetic_op='SPC',
+                      mutation_rate = 0.2):
     """
     Population update step
 
@@ -264,9 +273,11 @@ def population_update(input_population,
         pair_index = 0
         while len(output_population) < output_population_size:
             child_1, child_2 = genetic_operator(list_of_parent_pairs[pair_index], 
-                                                method=genetic_op)
+                                                method=genetic_op,
+                                                mutation_rate=mutation_rate)
             child_1, child_2 = genetic_operator((child_1, child_2), 
-                                                method='mutation')
+                                                method='N_mutation',
+                                                mutation_rate = mutation_rate)
             output_population.append(child_1)
             output_population.append(child_2)
             pair_index += 1
@@ -336,6 +347,8 @@ def evolution(input_population, n_generations, population_size, percentage_to_ke
     # We will find the histogram for each generation and the fittest person
     results_fitness = []
     results_fittest = []
+    highest_fitness = []
+    mutation_rate = 0.2
 
     for i in range(n_generations):
         print('Your population is in the ' + str(i + 1) + '-th generation')
@@ -343,14 +356,22 @@ def evolution(input_population, n_generations, population_size, percentage_to_ke
         fitness_list, ix, fittest_coloring = find_fittest(input_population)
         results_fitness.append(fitness_list)
         results_fittest.append(fittest_coloring)
+        highest_fitness.append((max(fitness_list)))
+        
         # Print highest fitness
         print('The fittest person is: ' + str(max(fitness_list)))
+        
+        if i>2 and highest_fitness[-1] == highest_fitness[-2]:
+            mutation_rate = math.sqrt(mutation_rate)
+        else:
+            mutation_rate = mutation_rate**2
 
         # Update
         output_population = population_update(input_population,
                                               population_size,
                                               percentage_to_keep=percentage_to_keep,
-                                              genetic_op=genetic_op)
+                                              genetic_op=genetic_op,
+                                              mutation_rate = mutation_rate)
         input_population = output_population
 
     return results_fitness, results_fittest
