@@ -46,7 +46,8 @@ class World_Map:
             G.add_node(index, color=node_color)  # Index the label
             for neighbour in adjacency_list[index]:
                 # input edge
-                G.add_edge(index, neighbour, illegal=False)  # illegal bool denotes whether nodes of the same color
+                G.add_edge(index, neighbour, illegal=False) 
+                # illegal bool denotes whether nodes of the same color
                 number_of_edges_twice += 1
                 if node_color == colors[neighbour]:
                     G[index][neighbour]['illegal'] = True
@@ -137,9 +138,14 @@ def parent_selection(input_population, number_of_pairs, method='RFPS'):
         
         fitness_list = [person.fitness for person in input_population]
         ix = np.argmin(fitness_list)
+        print ("least fit [",ix,"]: ", fitness_list[ix])
+        print ("fitness_list:", fitness_list)
         
-        fitness_sum = sum([(person.fitness - fitness_list[ix]) for person in input_population])
-        probabilities = np.array([(person.fitness - fitness_list[ix]) / fitness_sum for person in input_population])
+        worse_fitness = fitness_list[ix]/2 #avoid division by zero.
+        
+        fitness_sum = sum([(person.fitness - worse_fitness) for person in input_population])
+        print("fitness_sum: ", fitness_sum)
+        probabilities = np.array([(person.fitness - worse_fitness) / fitness_sum for person in input_population])
 
         I_x = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
         I_y = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
@@ -189,8 +195,6 @@ def genetic_operator(pair_of_parents, method='SPC', mutation_rate = 0.2):
         #Step 2) Change the allele in this gene
         child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
         child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
-
-        #return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
     
     if method == 'N_mutation': #only mutates N random alleles
         # this method does not need a pair of parents, it inputs only one person
@@ -200,8 +204,6 @@ def genetic_operator(pair_of_parents, method='SPC', mutation_rate = 0.2):
             child_1, child_2 = genetic_operator(pair_of_parents, 
                                                 method='mutation',
                                                 mutation_rate = mutation_rate)
-
-        #return child_1, child_2
     
     if method == 'wild_mutation': #it changes several genes
         
@@ -212,8 +214,6 @@ def genetic_operator(pair_of_parents, method='SPC', mutation_rate = 0.2):
             if np.random.uniform(0,1) < p_m:
                 child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
                 child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
-
-        #return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
 
     if method == 'SPC':  # Single point crossover
         # Step 1) Select a random point
@@ -365,6 +365,7 @@ def evolution(input_population, n_generations, population_size, percentage_to_ke
             mutation_rate = math.sqrt(mutation_rate)
         else:
             mutation_rate = mutation_rate**2
+        print('mutation_rate:', mutation_rate)
 
         # Update
         output_population = population_update(input_population,

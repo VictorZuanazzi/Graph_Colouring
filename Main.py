@@ -12,8 +12,8 @@ __email__ = "jankrepl@yahoo.com"
 __status__ = "Production"
 
 # PARAMETERS
-population_size = 500  # Stays constant throughout evolution
-n_nodes = 25  # Number of countries = number of nodes in a graph
+population_size = 100  # Stays constant throughout evolution
+n_nodes = 7  # Number of countries = number of nodes in a graph
 number_of_edges, al = generate_random_graph(n_nodes, 0.6)  # The graph 
 #architecture is generated randomly
 n_generations = 100
