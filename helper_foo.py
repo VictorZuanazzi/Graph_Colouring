@@ -17,10 +17,13 @@ class World_Map:
         :param adjacency_list: adjacency list - list of neighbours for each node
         :type adjacency_list: list of lists
         """
-        self.colors = colors  # string .. i-th element represents color - 3 possible colours 'r','g' and 'b'
+        self.colors = colors  # string .. i-th element represents color - 3 
+        #possible colours 'r','g' and 'b'
         self.adjacency_list = adjacency_list  # list of lists
         self.n_nodes = len(self.colors)
-        self.fitness, self.graph_nx = self.__convert_to_nxgraph(self.colors, self.adjacency_list)
+        self.fitness, self.graph_nx = self.__convert_to_nxgraph(
+                self.colors, 
+                self.adjacency_list)
 
     # The networks package offers amazing visualization features
     def __convert_to_nxgraph(self, colors, adjacency_list):
@@ -77,11 +80,13 @@ class World_Map:
 def generate_random_graph(number_of_nodes, probability_of_edge):
     """
 
-    Generates a random graph that has on average probability_of_edge * (number_of_nodes choose 2) edges
+    Generates a random graph that has on average probability_of_edge * 
+    (number_of_nodes choose 2) edges
 
     :param number_of_nodes: number of graph nodes
     :type number_of_nodes: int
-    :param probability_of_edge: Probability of an edge given any two different nodes
+    :param probability_of_edge: Probability of an edge given any two different
+    nodes
     :type probability_of_edge: float
     :return: (number of edges, adjacency list)
     :rtype: (int, list of lists)
@@ -90,13 +95,12 @@ def generate_random_graph(number_of_nodes, probability_of_edge):
     G = nx.fast_gnp_random_graph(number_of_nodes, probability_of_edge, seed=None, directed=False)
     edges = []
     for i in range(number_of_nodes):
-        temp1 = G.adj[i]
         edges.append(list(G.adj[i].keys()))
     return G.number_of_edges(), edges
 
 
 # Creates list of pairs from the input population
-def parent_selection(input_population, number_of_pairs, method='FPS'):
+def parent_selection(input_population, number_of_pairs, method='RFPS'):
     """
     Forms pairs from the input population (with replacement)
 
@@ -116,18 +120,43 @@ def parent_selection(input_population, number_of_pairs, method='FPS'):
     if method == 'FPS':  # Fitness proportional selection
         # our fitness is non-negative so we can apply a simple formula  fitness_m/sum(fitness_i)
         fitness_sum = sum([person.fitness for person in input_population])
+        
         probabilities = np.array([person.fitness / fitness_sum for person in input_population])
 
         I_x = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
         I_y = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
 
         return [(input_population[I_x[i]], input_population[I_y[i]]) for i in range(number_of_pairs)]
+    
+    if method == 'RFPS':  # Relative Fitness proportional selection
+        # All fitness are compared to the least fit individual.
+        # The probabilities are taken from the difference between the fitness 
+        # of the individual and of the least fit one.
+        # The last fit individual has no probability to be selected.
+        
+        fitness_list = [person.fitness for person in input_population]
+        ix = np.argmin(fitness_list)
+        
+        fitness_sum = sum([(person.fitness - fitness_list[ix]) for person in input_population])
+        probabilities = np.array([(person.fitness - fitness_list[ix]) / fitness_sum for person in input_population])
+
+        I_x = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
+        I_y = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
+
+        return [(input_population[I_x[i]], input_population[I_y[i]]) for i in range(number_of_pairs)]
+    
+    if method == 'RS': # Ranking selection
+        
+        input_population.sort(key=lambda x: x.fitness, reverse=True)
+        probabilities = np.array([person.fitness / fitness_sum for person in input_population])
+        return [(input_population[I_x[i]], input_population[I_y[i]]) for i in range(number_of_pairs)]
 
 
 # Define a genetic operator
 def genetic_operator(pair_of_parents, method='SPC'):
     """
-    For a given pair of parents we output a pair of children based one a given genetic operator
+    For a given pair of parents we output a pair of children based one a given 
+    genetic operator
 
     :param pair_of_parents: pair of parents
     :type pair_of_parents: pair of World_Map
@@ -140,28 +169,28 @@ def genetic_operator(pair_of_parents, method='SPC'):
     n_nodes = pair_of_parents[0].n_nodes
     al = pair_of_parents[0].adjacency_list
 
-    if method == 'mutation':
+    if method == 'mutation': #only mutates a random allele
         # this method does not need a pair of parents, it inputs only one person
         # Idea:
-
+        
+        #Step 1) Select a random gene
         node1 = np.random.randint(0, n_nodes)
         node2 = np.random.randint(0, n_nodes)
-
+        
+        #Step 2) Change the allele in this gene
         mapper = {'r': ['b', 'g'], 'b': ['r', 'g'], 'g': ['r', 'b']}
 
         child_one_colors = pair_of_parents[0].colors
         child_two_colors = pair_of_parents[1].colors
-
-        child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]],
-                                                                       1)[0] + child_one_colors[node1 + 1:]
-        child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]],
-                                                                       1)[0] + child_two_colors[node2 + 1:]
+        child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
+        child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
 
         return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
 
     if method == 'SPC':  # Single point crossover
         # Step 1) Select a random point
-        # Step 2) All colours to the left will be from parent 1, all parent to the right are from parent 2
+        # Step 2) All colours to the left will be from parent 1, 
+        #all parent to the right are from parent 2
         point = np.random.randint(0, n_nodes)
 
         parent_1_colors = pair_of_parents[0].colors
@@ -174,8 +203,11 @@ def genetic_operator(pair_of_parents, method='SPC'):
 
 
 # Population update
-def population_update(input_population, output_population_size, generation_change_method='Elitism',
-                      percentage_to_keep=0.1, genetic_op='SPC'):
+def population_update(input_population, 
+                      output_population_size, 
+                      generation_change_method='Elitism',
+                      percentage_to_keep=0.1, 
+                      genetic_op='SPC'):
     """
     Population update step
 
@@ -200,11 +232,15 @@ def population_update(input_population, output_population_size, generation_chang
         input_population.sort(key=lambda x: x.fitness, reverse=True)
         output_population += input_population[:int(input_population_size * percentage_to_keep)]
 
-        list_of_parent_pairs = parent_selection(input_population, input_population_size // 2)
+        list_of_parent_pairs = parent_selection(input_population, 
+                                                input_population_size // 2)
 
         pair_index = 0
         while len(output_population) < output_population_size:
-            child_1, child_2 = genetic_operator(list_of_parent_pairs[pair_index], method=genetic_op)
+            child_1, child_2 = genetic_operator(list_of_parent_pairs[pair_index], 
+                                                method=genetic_op)
+            child_1, child_2 = genetic_operator((child_1, child_2), 
+                                                method='mutation')
             output_population.append(child_1)
             output_population.append(child_2)
             pair_index += 1
@@ -285,8 +321,10 @@ def evolution(input_population, n_generations, population_size, percentage_to_ke
         print('The fittest person is: ' + str(max(fitness_list)))
 
         # Update
-        output_population = population_update(input_population, population_size,
-                                              percentage_to_keep=percentage_to_keep, genetic_op=genetic_op)
+        output_population = population_update(input_population,
+                                              population_size,
+                                              percentage_to_keep=percentage_to_keep,
+                                              genetic_op=genetic_op)
         input_population = output_population
 
     return results_fitness, results_fittest
