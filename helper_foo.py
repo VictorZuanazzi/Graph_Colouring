@@ -145,10 +145,16 @@ def parent_selection(input_population, number_of_pairs, method='RFPS'):
 
         return [(input_population[I_x[i]], input_population[I_y[i]]) for i in range(number_of_pairs)]
     
-    if method == 'RS': # Ranking selection
+    
+    if method == 'RS': # Ranking selection 
         
         input_population.sort(key=lambda x: x.fitness, reverse=True)
-        probabilities = np.array([person.fitness / fitness_sum for person in input_population])
+        mi_square_minus_mi = input_n*(input_n-1)
+        
+        probabilities = np.array([2*person / mi_square_minus_mi for person in range(len(input_population))])
+        I_x = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
+        I_y = np.random.choice(np.arange(0, input_n), number_of_pairs, p=probabilities)
+        
         return [(input_population[I_x[i]], input_population[I_y[i]]) for i in range(number_of_pairs)]
 
 
@@ -171,7 +177,6 @@ def genetic_operator(pair_of_parents, method='SPC'):
 
     if method == 'mutation': #only mutates a random allele
         # this method does not need a pair of parents, it inputs only one person
-        # Idea:
         
         #Step 1) Select a random gene
         node1 = np.random.randint(0, n_nodes)
@@ -184,6 +189,21 @@ def genetic_operator(pair_of_parents, method='SPC'):
         child_two_colors = pair_of_parents[1].colors
         child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
         child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
+
+        return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
+    
+    if method == 'wild_mutation': #it changes several genes
+        
+        p_m = 0.8
+        
+        child_one_colors = pair_of_parents[0].colors
+        child_two_colors = pair_of_parents[1].colors
+        mapper = {'r': ['b', 'g'], 'b': ['r', 'g'], 'g': ['r', 'b']}
+        for node1 in range(n_nodes):
+            node2 = n_nodes-1-node1
+            if np.random.uniform(0,1) < p_m:
+                child_one_colors = child_one_colors[:node1] + np.random.choice(mapper[child_one_colors[node1]], 1)[0] + child_one_colors[node1 + 1:]
+                child_two_colors = child_two_colors[:node2] + np.random.choice(mapper[child_two_colors[node2]], 1)[0] + child_two_colors[node2 + 1:]
 
         return World_Map(child_one_colors, al), World_Map(child_two_colors, al)
 
@@ -231,9 +251,15 @@ def population_update(input_population,
         #  # We keep the best x percent of the input population
         input_population.sort(key=lambda x: x.fitness, reverse=True)
         output_population += input_population[:int(input_population_size * percentage_to_keep)]
-
+        
         list_of_parent_pairs = parent_selection(input_population, 
                                                 input_population_size // 2)
+        
+        #Mutates (very agrecivelly) the worst individuals:
+        input_population[-1], input_population[-2] = genetic_operator((input_population[-1], input_population[-2]),
+                        method = 'wild_mutation')
+        #The mutated individuals are included as parents
+        list_of_parent_pairs.append((input_population[-1], input_population[-2]))
 
         pair_index = 0
         while len(output_population) < output_population_size:
